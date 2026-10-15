@@ -1,0 +1,38 @@
+# NOTE:
+#   1) the units must be metal
+#   2) the 3D periodic boundary condition must be used
+#   3) cannot use MPI parallelization, only OpenMP or GPU
+#
+
+variable      TEMP string 425
+variable      TCOUPL string 0.05
+variable      RANDOM file rng.xvg
+
+units         metal
+boundary      p p p
+atom_style    full
+
+#--------------------------------------------------------
+# Please change this accordingly
+#--------------------------------------------------------
+pair_style    gnnp  /work/e05/e05/tianmuy/software/lammps-chgnet/src/ML-GNNP 
+read_data     ./lmp.data
+
+pair_coeff    * *  chgnet path ../../source/train-local-huber-05-23-2025.pth.tar  Cl Li P S
+
+dump          myDump all custom 10 xyz.lammpstrj id element x y z vx vy vz
+dump_modify   myDump sort id element Cl Li P S
+
+thermo_style  custom step time pe ke etotal temp press 
+thermo        50
+
+#velocity      all create ${TEMP} ${RANDOM}
+fix           0 all momentum 10 linear 1 1 1 rescale
+fix           1 all nve 
+fix           2 all temp/csvr ${TEMP} ${TEMP} ${TCOUPL} ${RANDOM}
+restart       10000 eq.restart
+
+timestep      1.0e-3
+run           1000000
+
+write_data data.final
